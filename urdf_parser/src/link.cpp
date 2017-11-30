@@ -1,13 +1,13 @@
 /*********************************************************************
 * Software License Agreement (BSD License)
-*
+* 
 *  Copyright (c) 2008, Willow Garage, Inc.
 *  All rights reserved.
-*
+* 
 *  Redistribution and use in source and binary forms, with or without
 *  modification, are permitted provided that the following conditions
 *  are met:
-*
+* 
 *   * Redistributions of source code must retain the above copyright
 *     notice, this list of conditions and the following disclaimer.
 *   * Redistributions in binary form must reproduce the above
@@ -17,7 +17,7 @@
 *   * Neither the name of the Willow Garage nor the names of its
 *     contributors may be used to endorse or promote products derived
 *     from this software without specific prior written permission.
-*
+* 
 *  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
 *  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
 *  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
@@ -39,7 +39,8 @@
 #include <urdf_model/link.h>
 #include <fstream>
 #include <sstream>
-#include <boost/lexical_cast.hpp>
+#include <stdexcept>
+#include <string>
 #include <algorithm>
 #include <tinyxml2.h>
 #include <console_bridge/console.h>
@@ -60,7 +61,7 @@ bool parseMaterial(Material &material, tinyxml2::XMLElement *config, bool only_n
     CONSOLE_BRIDGE_logError("Material must contain a name attribute");
     return false;
   }
-
+  
   material.name = config->Attribute("name");
 
   // texture
@@ -84,7 +85,7 @@ bool parseMaterial(Material &material, tinyxml2::XMLElement *config, bool only_n
         material.color.init(c->Attribute("rgba"));
         has_rgb = true;
       }
-      catch (ParseError &e) {
+      catch (ParseError &e) {  
         material.color.clear();
         CONSOLE_BRIDGE_logError(std::string("Material [" + material.name + "] has malformed color rgba values: " + e.what()).c_str());
       }
@@ -116,23 +117,30 @@ bool parseSphere(Sphere &s, tinyxml2::XMLElement *c)
 
   try
   {
-    s.radius = boost::lexical_cast<double>(c->Attribute("radius"));
+    s.radius = std::stod(c->Attribute("radius"));
   }
-  catch (boost::bad_lexical_cast &e)
+  catch (std::invalid_argument &e)
   {
     std::stringstream stm;
     stm << "radius [" << c->Attribute("radius") << "] is not a valid float: " << e.what();
     CONSOLE_BRIDGE_logError(stm.str().c_str());
     return false;
   }
-
+  catch (std::out_of_range &e)
+  {
+    std::stringstream stm;
+    stm << "radius [" << c->Attribute("radius") << "] is out of range: " << e.what();
+    CONSOLE_BRIDGE_logError(stm.str().c_str());
+    return false;
+  }
+  
   return true;
 }
 
-bool parseBox(Box &b, tinyxml2::XMLElement *c)
+bool parseBox(Box &b, TiXmlElement *c)
 {
   b.clear();
-
+  
   b.type = Geometry::BOX;
   if (!c->Attribute("size"))
   {
@@ -166,24 +174,38 @@ bool parseCylinder(Cylinder &y, tinyxml2::XMLElement *c)
 
   try
   {
-    y.length = boost::lexical_cast<double>(c->Attribute("length"));
+    y.length = std::stod(c->Attribute("length"));
   }
-  catch (boost::bad_lexical_cast &/*e*/)
+  catch (std::invalid_argument &/*e*/)
   {
     std::stringstream stm;
     stm << "length [" << c->Attribute("length") << "] is not a valid float";
     CONSOLE_BRIDGE_logError(stm.str().c_str());
     return false;
   }
+  catch (std::out_of_range &/*e*/)
+  {
+    std::stringstream stm;
+    stm << "length [" << c->Attribute("length") << "] is out of range";
+    CONSOLE_BRIDGE_logError(stm.str().c_str());
+    return false;
+  }
 
   try
   {
-    y.radius = boost::lexical_cast<double>(c->Attribute("radius"));
+    y.radius = std::stod(c->Attribute("radius"));
   }
-  catch (boost::bad_lexical_cast &/*e*/)
+  catch (std::invalid_argument &/*e*/)
   {
     std::stringstream stm;
     stm << "radius [" << c->Attribute("radius") << "] is not a valid float";
+    CONSOLE_BRIDGE_logError(stm.str().c_str());
+    return false;
+  }
+  catch (std::out_of_range &/*e*/)
+  {
+    std::stringstream stm;
+    stm << "radius [" << c->Attribute("radius") << "] is out of range";
     CONSOLE_BRIDGE_logError(stm.str().c_str());
     return false;
   }
@@ -259,14 +281,14 @@ GeometrySharedPtr parseGeometry(tinyxml2::XMLElement *g)
     Mesh *m = new Mesh();
     geom.reset(m);
     if (parseMesh(*m, shape))
-      return geom;
+      return geom;    
   }
   else
   {
     CONSOLE_BRIDGE_logError("Unknown geometry type '%s'", type_name.c_str());
     return geom;
   }
-
+  
   return GeometrySharedPtr();
 }
 
@@ -296,13 +318,21 @@ bool parseInertial(Inertial &i, tinyxml2::XMLElement *config)
 
   try
   {
-    i.mass = boost::lexical_cast<double>(mass_xml->Attribute("value"));
+    i.mass = std::stod(mass_xml->Attribute("value"));
   }
-  catch (boost::bad_lexical_cast &/*e*/)
+  catch (std::invalid_argument &/*e*/)
   {
     std::stringstream stm;
     stm << "Inertial: mass [" << mass_xml->Attribute("value")
         << "] is not a float";
+    CONSOLE_BRIDGE_logError(stm.str().c_str());
+    return false;
+  }
+  catch (std::out_of_range &/*e*/)
+  {
+    std::stringstream stm;
+    stm << "Inertial: mass [" << mass_xml->Attribute("value")
+        << "] is out of range";
     CONSOLE_BRIDGE_logError(stm.str().c_str());
     return false;
   }
@@ -322,17 +352,30 @@ bool parseInertial(Inertial &i, tinyxml2::XMLElement *config)
   }
   try
   {
-    i.ixx  = boost::lexical_cast<double>(inertia_xml->Attribute("ixx"));
-    i.ixy  = boost::lexical_cast<double>(inertia_xml->Attribute("ixy"));
-    i.ixz  = boost::lexical_cast<double>(inertia_xml->Attribute("ixz"));
-    i.iyy  = boost::lexical_cast<double>(inertia_xml->Attribute("iyy"));
-    i.iyz  = boost::lexical_cast<double>(inertia_xml->Attribute("iyz"));
-    i.izz  = boost::lexical_cast<double>(inertia_xml->Attribute("izz"));
+    i.ixx  = std::stod(inertia_xml->Attribute("ixx"));
+    i.ixy  = std::stod(inertia_xml->Attribute("ixy"));
+    i.ixz  = std::stod(inertia_xml->Attribute("ixz"));
+    i.iyy  = std::stod(inertia_xml->Attribute("iyy"));
+    i.iyz  = std::stod(inertia_xml->Attribute("iyz"));
+    i.izz  = std::stod(inertia_xml->Attribute("izz"));
   }
-  catch (boost::bad_lexical_cast &/*e*/)
+  catch (std::invalid_argument &/*e*/)
   {
     std::stringstream stm;
     stm << "Inertial: one of the inertia elements is not a valid double:"
+        << " ixx [" << inertia_xml->Attribute("ixx") << "]"
+        << " ixy [" << inertia_xml->Attribute("ixy") << "]"
+        << " ixz [" << inertia_xml->Attribute("ixz") << "]"
+        << " iyy [" << inertia_xml->Attribute("iyy") << "]"
+        << " iyz [" << inertia_xml->Attribute("iyz") << "]"
+        << " izz [" << inertia_xml->Attribute("izz") << "]";
+    CONSOLE_BRIDGE_logError(stm.str().c_str());
+    return false;
+  }
+  catch (std::out_of_range &/*e*/)
+  {
+    std::stringstream stm;
+    stm << "Inertial: one of the inertia elements is out of range:"
         << " ixx [" << inertia_xml->Attribute("ixx") << "]"
         << " ixy [" << inertia_xml->Attribute("ixy") << "]"
         << " ixz [" << inertia_xml->Attribute("ixz") << "]"
@@ -375,7 +418,7 @@ bool parseVisual(Visual &vis, tinyxml2::XMLElement *config)
       return false;
     }
     vis.material_name = mat->Attribute("name");
-
+    
     // try to parse material element in place
     vis.material.reset(new Material());
     if (!parseMaterial(*vis.material, mat, true))
@@ -383,7 +426,7 @@ bool parseVisual(Visual &vis, tinyxml2::XMLElement *config)
       CONSOLE_BRIDGE_logDebug("urdfdom: material has only name, actual material definition may be in the model");
     }
   }
-
+  
   return true;
 }
 
@@ -397,7 +440,7 @@ bool parseCollision(Collision &col, tinyxml2::XMLElement* config)
     if (!parsePose(col.origin, o))
       return false;
   }
-
+  
   // Geometry
   tinyxml2::XMLElement *geom = config->FirstChildElement("geometry");
   col.geometry = parseGeometry(geom);
@@ -413,7 +456,7 @@ bool parseCollision(Collision &col, tinyxml2::XMLElement* config)
 
 bool parseLink(Link &link, tinyxml2::XMLElement* config)
 {
-
+  
   link.clear();
 
   const char *name_char = config->Attribute("name");
@@ -458,14 +501,14 @@ bool parseLink(Link &link, tinyxml2::XMLElement* config)
   // Assign the first visual to the .visual ptr, if it exists
   if (!link.visual_array.empty())
     link.visual = link.visual_array[0];
-
+  
   // Multiple Collisions (optional)
   for (tinyxml2::XMLElement* col_xml = config->FirstChildElement("collision"); col_xml; col_xml = col_xml->NextSiblingElement("collision"))
   {
     CollisionSharedPtr col;
     col.reset(new Collision());
     if (parseCollision(*col, col_xml))
-    {
+    {      
       link.collision_array.push_back(col);
     }
     else
@@ -475,8 +518,8 @@ bool parseLink(Link &link, tinyxml2::XMLElement* config)
       return false;
     }
   }
-
-  // Collision (optional)
+  
+  // Collision (optional)  
   // Assign the first collision to the .collision ptr, if it exists
   if (!link.collision_array.empty())
     link.collision = link.collision_array[0];
