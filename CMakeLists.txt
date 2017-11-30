@@ -12,6 +12,17 @@ message (STATUS "${PROJECT_NAME} version ${URDF_VERSION}")
 
 include(GNUInstallDirs)
 
+function(ExtractLibraries outputVar libraryHints)
+	foreach(LIB ${ARGN})
+		message(STATUS "LIB: ${LIB}")
+		find_library(TMP ${LIB} HINTS ${libraryHints})
+		set( ${outputVar} ${${outputVar}} ${TMP})
+		unset(TMP CACHE)
+	endforeach(LIB)
+  set(${outputVar} ${${outputVar}} PARENT_SCOPE)
+endfunction()
+
+
 # set the default build type
 if (NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE Release)
@@ -32,8 +43,13 @@ endif (MSVC OR MSVC90 OR MSVC10)
 
 set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 
-find_package(TinyXML REQUIRED)
-include_directories(SYSTEM ${TinyXML_INCLUDE_DIRS})
+find_package(PkgConfig REQUIRED)
+pkg_search_module(TINYXML2 REQUIRED TinyXML2 tinyxml2)
+ExtractLibraries(TINYXML_LIBRARIES ${TINYXML2_LIBRARY_DIRS} ${TINYXML2_LIBRARIES})
+message(STATUS "TINYXML2 LIBS: ${TINYXML_LIBRARIES}")
+
+#find_package(TinyXML REQUIRED)
+#include_directories(SYSTEM ${TinyXML_INCLUDE_DIRS})
 
 find_package(urdfdom_headers 0.4 REQUIRED)
 include_directories(SYSTEM ${urdfdom_headers_INCLUDE_DIRS})
@@ -46,7 +62,7 @@ find_package(Boost REQUIRED system thread unit_test_framework)
 include_directories(${Boost_INCLUDE_DIR})
 link_directories(${Boost_LIBRARY_DIRS})
 
-#In Visual Studio a special postfix for 
+#In Visual Studio a special postfix for
 #libraries compiled in debug is used
 if(MSVC)
 set(CMAKE_DEBUG_POSTFIX "d")
