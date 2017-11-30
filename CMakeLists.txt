@@ -45,8 +45,8 @@ set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 
 find_package(PkgConfig REQUIRED)
 pkg_search_module(TINYXML2 REQUIRED TinyXML2 tinyxml2)
-ExtractLibraries(TINYXML_LIBRARIES ${TINYXML2_LIBRARY_DIRS} ${TINYXML2_LIBRARIES})
-message(STATUS "TINYXML2 LIBS: ${TINYXML_LIBRARIES}")
+ExtractLibraries(TinyXML_LIBRARIES ${TINYXML2_LIBRARY_DIRS} ${TINYXML2_LIBRARIES})
+message(STATUS "TINYXML2 LIBS: ${TinyXML_LIBRARIES}")
 
 find_package(urdfdom_headers 1.0 REQUIRED)
 include_directories(SYSTEM ${urdfdom_headers_INCLUDE_DIRS})
@@ -58,7 +58,7 @@ find_package(console_bridge 0.3 REQUIRED)
 include_directories(SYSTEM ${console_bridge_INCLUDE_DIRS})
 link_directories(${console_bridge_LIBRARY_DIRS})
 
-#In Visual Studio a special postfix for 
+#In Visual Studio a special postfix for
 #libraries compiled in debug is used
 if(MSVC)
 set(CMAKE_DEBUG_POSTFIX "d")
